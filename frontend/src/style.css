@@ -48,6 +48,12 @@ select {
   font: inherit;
 }
 
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
 .shell {
   display: grid;
   min-height: 100vh;

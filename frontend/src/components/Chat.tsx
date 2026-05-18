@@ -1,41 +1,91 @@
-import { h, createState } from "@vdom-lib";
+import { h, createState, createEffect } from "@vdom-lib";
 import "./Chat.css";
 import { Sidebar } from "./Sidebar";
+import { ApiError, classifyPrompt } from "../utils/api";
+import { currState } from "../utils/state";
 
 type Message = {
   id: number;
   text: string;
   sender: "user" | "bot";
+  variant?: "error";
 };
+
+// https://thariqs.github.io/html-effectiveness/
 
 export function Chat() {
   const [sidebarOpen, setSidebarOpen] = createState(true);
   const [messages, setMessages] = createState<Message[]>([]);
   const [inputValue, setInputValue] = createState("");
+  const [isLoading, setIsLoading] = createState(false);
+  const inProgress = currState.get().inProgress;
 
-  const handleSendMessage = () => {
+  // createEffect(() => {
+  //   if (currState.get().inProgress) {
+  //     setSidebarOpen(true);
+  //   } else {
+  //     setSidebarOpen(false);
+  //   }
+  // }, [sidebarOpen]);
+
+  const handleSendMessage = async () => {
     // const currentInputValue =
     //   document.querySelector<HTMLTextAreaElement>(".chat-input")?.value ?? "";
     // const messageText = currentInputValue.trim();
 
-    if (inputValue.trim() !== "") {
+    const messageText = inputValue.trim();
+
+    if (messageText !== "" && !isLoading) {
       setMessages((currentMessages) => [
         ...currentMessages,
-        { id: currentMessages.length + 1, text: inputValue, sender: "user" },
+        { id: currentMessages.length + 1, text: messageText, sender: "user" },
       ]);
       setInputValue("");
+      setIsLoading(true);
 
-      // Simulate bot response
-      setTimeout(() => {
+      try {
+        const result = await classifyPrompt(messageText);
         setMessages((prev) => [
           ...prev,
           {
             id: prev.length + 1,
-            text: "That's interesting! Tell me more.",
+            text: `Intent: ${result.intent} (${Math.round(
+              result.confidence * 100,
+            )}% confidence)`,
             sender: "bot",
           },
         ]);
-      }, 500);
+
+        currState.set((prev) => ({
+          ...prev,
+          currentIntent: result.intent,
+          id: currState.get().id + 1,
+          inProgress: true,
+        }));
+
+        if (result.intent !== "unknown") {
+          setSidebarOpen(true);
+        }
+      } catch (error) {
+        const isApiError =
+          error instanceof ApiError &&
+          error.status >= 400 &&
+          error.status < 600;
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: prev.length + 1,
+            text: isApiError
+              ? "The classify service returned an error. Please try again."
+              : "I couldn't reach the classify service right now.",
+            sender: "bot",
+            variant: "error",
+          },
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -59,10 +109,45 @@ export function Chat() {
         <div className="chat-content">
           <div className="messages-area">
             {messages.map((msg) => (
-              <div key={msg.id} className={`message ${msg.sender}`}>
-                <div className="message-bubble">{msg.text}</div>
+              <div
+                key={msg.id}
+                className={`message ${msg.sender} ${msg.variant ?? ""}`}
+              >
+                <div className="message-bubble">
+                  {msg.variant === "error" && (
+                    <svg
+                      className="message-icon"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                  )}
+                  <span>{msg.text}</span>
+                </div>
               </div>
             ))}
+            {isLoading && (
+              <div className="message bot loading" aria-live="polite">
+                <div className="message-bubble">
+                  <span className="loading-dots" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                  <span>Classifying...</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Input Area */}
@@ -78,6 +163,7 @@ export function Chat() {
               className="chat-input"
               placeholder="Type your message..."
               value={inputValue}
+              disabled={isLoading}
               onInput={(e: InputEvent) => {
                 const target = e.target as HTMLTextAreaElement;
                 setInputValue(target.value);
@@ -90,7 +176,11 @@ export function Chat() {
                 }
               }}
             />
-            <button className="send-btn" type="submit">
+            <button
+              className="send-btn"
+              type="submit"
+              disabled={isLoading || inProgress || inputValue.trim() === ""}
+            >
               <svg
                 width="20"
                 height="20"

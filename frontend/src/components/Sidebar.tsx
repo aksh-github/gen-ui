@@ -1,5 +1,6 @@
 import { h } from "@vdom-lib";
 import "./Sidebar.css";
+import { currState } from "../utils/state";
 
 type SidebarProps = {
   isOpen: boolean;
@@ -13,7 +14,6 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       aria-label="Chat sidebar"
     >
       <div className="sidebar-header">
-        <span className="sidebar-title">Conversations</span>
         <button
           className="sidebar-toggle"
           onClick={onToggle}
@@ -37,13 +37,38 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       </div>
 
       <div className="sidebar-body" aria-hidden={!isOpen}>
-        <button className="new-chat-btn">New chat</button>
-        <div className="conversations">
-          <button className="conversation-item active">
-            <span className="conversation-title">Current chat</span>
-          </button>
+        <h3>Current Intent: {currState.get().currentIntent || "None"}</h3>
+        <p>Running: {currState.get().inProgress ? "Yes" : "No"}</p>
+        <div className="sidebar-empty-state">
+          <div className="sidebar-empty-icon" aria-hidden="true">
+            :)
+          </div>
+          <p className="sidebar-empty-title">You're all caught up</p>
+          <p className="sidebar-empty-copy">Nothing for now.</p>
         </div>
+        <button
+          onClick={() =>
+            currState.set({
+              ...currState.get(),
+              currentIntent: "",
+              inProgress: false,
+            })
+          }
+        >
+          Reset
+        </button>
       </div>
+      {/* <button
+        onClick={() =>
+          currState.set({
+            ...currState.get(),
+            currentIntent: "",
+            inProgress: false,
+          })
+        }
+      >
+        Reset
+      </button> */}
     </aside>
   );
 }
