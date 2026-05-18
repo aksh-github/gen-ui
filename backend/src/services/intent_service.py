@@ -3,7 +3,7 @@ import json
 import ollama
 
 from src.api.schemas.classify import ClassifyResponse
-from src.models.intent import INTENT_LIST, IntentLabel
+from src.models.intent import INTENT_DEFINITIONS, INTENT_LIST, IntentLabel
 
 # --- Configuration ---
 MODEL_NAME = "gemma4:e4b"
@@ -23,9 +23,18 @@ class IntentClassifier:
         if possible_intents is None:
             possible_intents = INTENT_LIST
 
+        intent_definitions = "\n".join(
+            f"- {intent}: {INTENT_DEFINITIONS[intent]}"
+            for intent in possible_intents
+            if intent in INTENT_DEFINITIONS
+        )
+
         schema_definition = f"""
         You are an Intent Classification Engine. Your sole job is to analyze a user's message and classify the intent 
-        based on the provided list of possible intents. 
+        based on the provided list of possible intents.
+
+        Available intent classifications:
+        {intent_definitions}
         
         Your entire response MUST be a single JSON object and nothing else.
         
@@ -62,9 +71,13 @@ class IntentClassifier:
             try:
                 classification_result = json.loads(full_response_text)
                 try:
+                    confidence = float(classification_result["confidence_score"])
+                    if confidence < 0.6:
+                        return ClassifyResponse(intent=IntentLabel.unknown, confidence=0.0)
+
                     return ClassifyResponse(
                         intent=IntentLabel(classification_result["intent"]),
-                        confidence=float(classification_result["confidence_score"]),
+                        confidence=confidence,
                     )
                 except (KeyError, ValueError, TypeError):
                     return ClassifyResponse(intent=IntentLabel.unknown, confidence=0.0)

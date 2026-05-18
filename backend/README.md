@@ -90,13 +90,13 @@ Each chunk is emitted as an SSE `data:` message.
 ```bash
 curl -X POST http://127.0.0.1:8000/classify \
   -H "Content-Type: application/json" \
-  -d '{"text":"hello there"}'
+  -d '{"text":"Write a LinkedIn post announcing our product update"}'
 ```
 
 Example response:
 
 ```json
-{"intent":"greeting","confidence":0.89}
+{"intent":"SOCIAL_MEDIA_CONTENT_CREATION","confidence":0.89}
 ```
 
 ## App Entry Point
