@@ -8,13 +8,13 @@ from src.api.routes.generate import router as generate_router
 app = FastAPI()
 
 # Allow CORS for frontend development server
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["http://localhost:5173"],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 app.include_router(classify_router)
 app.include_router(generate_router)

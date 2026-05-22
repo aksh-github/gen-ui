@@ -64,6 +64,9 @@ class IntentClassifier:
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": user_message},
                 ],
+                format="json",
+                # temperature=0.0,  # Set to 0 for deterministic output
+                options={"temperature": 0.0},  # Set to 0 for deterministic output
             )
 
             full_response_text = response["message"]["content"].strip()
@@ -73,16 +76,16 @@ class IntentClassifier:
                 try:
                     confidence = float(classification_result["confidence_score"])
                     if confidence < 0.6:
-                        return ClassifyResponse(intent=IntentLabel.unknown, confidence=0.0)
+                        return ClassifyResponse(intent=IntentLabel.UNKNOWN, confidence=0.0, str=None)
 
                     return ClassifyResponse(
                         intent=IntentLabel(classification_result["intent"]),
-                        confidence=confidence,
+                        confidence=confidence, str=None
                     )
                 except (KeyError, ValueError, TypeError):
-                    return ClassifyResponse(intent=IntentLabel.unknown, confidence=0.0)
+                    return ClassifyResponse(intent=IntentLabel.UNKNOWN, confidence=0.0, str="Something went wrong")
             except json.JSONDecodeError:
-                return ClassifyResponse(intent=IntentLabel.unknown, confidence=0.0)
+                return ClassifyResponse(intent=IntentLabel.UNKNOWN, confidence=0.0, str="Something went wrong")
 
         except Exception:
-            return ClassifyResponse(intent=IntentLabel.unknown, confidence=0.0)
+            return ClassifyResponse(intent=IntentLabel.UNKNOWN, confidence=0.0, str="Something went wrong")
