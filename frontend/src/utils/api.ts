@@ -1,6 +1,7 @@
 export type ClassifyResponse = {
   intent: string;
   confidence: number;
+  error: string | null;
 };
 
 export class ApiError extends Error {
@@ -13,10 +14,10 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = "";
 
 export async function classifyPrompt(text: string): Promise<ClassifyResponse> {
-  const response = await fetch(`${API_BASE_URL}/classify`, {
+  const response = await fetch(`/classify`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

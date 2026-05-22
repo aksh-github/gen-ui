@@ -115,6 +115,12 @@
   border-color: color-mix(in srgb, var(--danger) 45%, var(--gray-300));
 }
 
+.message.warn .message-bubble {
+  background: color-mix(in srgb, var(--warning) 10%, var(--white));
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--gray-300));
+}
+
 .message.loading .message-bubble {
   color: var(--gray-700);
 }

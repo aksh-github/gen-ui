@@ -1,17 +1,62 @@
-import { h, createState, createEffect } from "@vdom-lib";
+import { h, createState } from "@vdom-lib";
 import "./Chat.css";
 import { Sidebar } from "./Sidebar";
 import { ApiError, classifyPrompt } from "../utils/api";
-import { currState } from "../utils/state";
-
-type Message = {
-  id: number;
-  text: string;
-  sender: "user" | "bot";
-  variant?: "error";
-};
+import {
+  currState,
+  GENERIC_ERROR_MESSAGE,
+  MESSAGE_VARIANT,
+  SERVER_UNREACHABLE_MESSAGE,
+  UNKNOWN,
+  Message,
+} from "../utils/state";
 
 // https://thariqs.github.io/html-effectiveness/
+
+function Icon({ variant }: { variant: MESSAGE_VARIANT | undefined }) {
+  switch (variant) {
+    case MESSAGE_VARIANT.ERROR:
+      return (
+        <svg
+          className="message-icon"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      );
+    case MESSAGE_VARIANT.WARN:
+      return (
+        <svg
+          className="message-icon"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
 
 export function Chat() {
   const [sidebarOpen, setSidebarOpen] = createState(true);
@@ -45,6 +90,28 @@ export function Chat() {
 
       try {
         const result = await classifyPrompt(messageText);
+
+        // if there is any error
+        if (result?.error) {
+          throw new ApiError(500, "Something wrong");
+        }
+
+        // if intent is UNKNOWN
+        if (result?.intent === UNKNOWN) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: prev.length + 1,
+              text: `We can't process this type of intent`,
+              sender: "bot",
+              variant: MESSAGE_VARIANT.WARN,
+            },
+          ]);
+          return;
+        }
+
+        // we got right intent to process
+
         setMessages((prev) => [
           ...prev,
           {
@@ -63,9 +130,7 @@ export function Chat() {
           inProgress: true,
         }));
 
-        if (result.intent !== "unknown") {
-          setSidebarOpen(true);
-        }
+        setSidebarOpen(true);
       } catch (error) {
         const isApiError =
           error instanceof ApiError &&
@@ -77,10 +142,10 @@ export function Chat() {
           {
             id: prev.length + 1,
             text: isApiError
-              ? "The classify service returned an error. Please try again."
-              : "I couldn't reach the classify service right now.",
+              ? GENERIC_ERROR_MESSAGE
+              : SERVER_UNREACHABLE_MESSAGE,
             sender: "bot",
-            variant: "error",
+            variant: MESSAGE_VARIANT.ERROR,
           },
         ]);
       } finally {
@@ -114,24 +179,7 @@ export function Chat() {
                 className={`message ${msg.sender} ${msg.variant ?? ""}`}
               >
                 <div className="message-bubble">
-                  {msg.variant === "error" && (
-                    <svg
-                      className="message-icon"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
-                      <line x1="12" y1="9" x2="12" y2="13" />
-                      <line x1="12" y1="17" x2="12.01" y2="17" />
-                    </svg>
-                  )}
+                  <Icon variant={msg?.variant} />
                   <span>{msg.text}</span>
                 </div>
               </div>
