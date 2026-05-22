@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   resolve: {
     alias: {
-      "@vdom-lib": "/src/lib/microframe.es.CzW53S12.js",
+      "@vdom-lib": "/src/lib/microframe.es.DH1vxpfh.js",
     },
   },
   esbuild: {
@@ -13,5 +13,11 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    proxy: {
+      // string shorthand:
+      // http://localhost:5173/foo
+      //   -> http://localhost:4567/foo
+      "/classify": "http://localhost:8000/",
+    },
   },
 });
