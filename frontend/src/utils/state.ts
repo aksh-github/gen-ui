@@ -20,9 +20,24 @@ export const SERVER_UNREACHABLE_MESSAGE =
 
 export const GENERIC_ERROR_MESSAGE = "Something went wrong. Please try again.";
 
+export type ANY = string | number | null | undefined;
+
 export type Message = {
   id: number;
   text: string;
   sender: "user" | "bot";
   variant?: MESSAGE_VARIANT;
 };
+
+// const INTENT_LIST = [
+//   "SOCIAL_MEDIA_CONTENT_CREATION",
+//   "AGILE_PLANNING_AND_ARTIFACTS",
+//   "READABILITY_AND_COMPLIANCE_SCORING",
+//   "MARKETING_EMAIL_COMPLIANCE",
+//   "FORMAL_CONTENT_TRANSFORMATION",
+// ];
+
+export const intentToJsonfie = new Map<string, string>([
+  ["AGILE_PLANNING_AND_ARTIFACTS", "agile.json"],
+  ["SOCIAL_MEDIA_CONTENT_CREATION", "social.json"],
+]);

@@ -54,6 +54,39 @@ button {
   background: none;
 }
 
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 16px;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--radius-row);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.btn-primary {
+  background: var(--clay);
+  color: var(--white);
+}
+
+.btn-secondary {
+  background: var(--white);
+  color: var(--slate);
+  border-color: var(--gray-300) #d1cfc5;
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: var(--white);
+}
+
 .shell {
   display: grid;
   min-height: 100vh;

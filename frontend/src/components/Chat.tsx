@@ -63,7 +63,7 @@ export function Chat() {
   const [messages, setMessages] = createState<Message[]>([]);
   const [inputValue, setInputValue] = createState("");
   const [isLoading, setIsLoading] = createState(false);
-  const inProgress = currState.get().inProgress;
+  const { inProgress } = currState.get();
 
   // createEffect(() => {
   //   if (currState.get().inProgress) {
@@ -126,7 +126,7 @@ export function Chat() {
         currState.set((prev) => ({
           ...prev,
           currentIntent: result.intent,
-          id: currState.get().id + 1,
+          id: prev.id + 1,
           inProgress: true,
         }));
 
@@ -203,6 +203,9 @@ export function Chat() {
             className="chat-input-area"
             onSubmit={(e: SubmitEvent) => {
               e.preventDefault();
+
+              if (inProgress || isLoading) return;
+
               handleSendMessage();
             }}
           >
@@ -211,7 +214,7 @@ export function Chat() {
               className="chat-input"
               placeholder="Type your message..."
               value={inputValue}
-              disabled={isLoading}
+              disabled={isLoading || inProgress}
               onInput={(e: InputEvent) => {
                 const target = e.target as HTMLTextAreaElement;
                 setInputValue(target.value);

@@ -1,0 +1,18 @@
+{
+  "form": {
+    "id": "exampleForm22",
+    "className": "special-form",
+    "children": [
+      {
+        "id": "description",
+        "name": "description",
+        "type": "textarea",
+        "label": "Content",
+        "placeholder": "Provide your description here",
+        "validation": {
+          "required": true
+        }
+      }
+    ]
+  }
+}

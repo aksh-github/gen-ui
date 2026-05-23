@@ -70,6 +70,7 @@
   flex-direction: column;
   opacity: 1;
   transition: opacity 0.2s ease;
+  padding: 2em;
 }
 
 .sidebar-empty-state {

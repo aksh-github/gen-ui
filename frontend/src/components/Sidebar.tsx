@@ -1,6 +1,7 @@
 import { h } from "@vdom-lib";
 import "./Sidebar.css";
 import { currState } from "../utils/state";
+import { JsonFormConsumer } from "./dyn-json/JsonFormConsumer";
 
 type SidebarProps = {
   isOpen: boolean;
@@ -8,6 +9,9 @@ type SidebarProps = {
 };
 
 export function Sidebar({ isOpen, onToggle }: SidebarProps) {
+  const { currentIntent, inProgress, id } = currState.get();
+  // console.log(currState.get());
+
   return (
     <aside
       className={`chat-sidebar ${isOpen ? "open" : "closed"}`}
@@ -37,26 +41,37 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       </div>
 
       <div className="sidebar-body" aria-hidden={!isOpen}>
-        <h3>Current Intent: {currState.get().currentIntent || "None"}</h3>
-        <p>Running: {currState.get().inProgress ? "Yes" : "No"}</p>
-        <div className="sidebar-empty-state">
-          <div className="sidebar-empty-icon" aria-hidden="true">
-            :)
+        {/* <h3>Current Intent: {currentIntent || "None"}</h3>
+        <p>Running: {inProgress ? "Yes" : "No"}</p> */}
+        {inProgress ? (
+          <div>
+            <button
+              className="btn btn-danger"
+              onClick={() =>
+                currState.set({
+                  ...currState.get(),
+                  currentIntent: "",
+                  inProgress: false,
+                })
+              }
+            >
+              &larr; Cancel and Go Back
+            </button>
+            <JsonFormConsumer
+              key={`k` + id}
+              currentIntent={currentIntent}
+              id={id}
+            />
           </div>
-          <p className="sidebar-empty-title">You're all caught up</p>
-          <p className="sidebar-empty-copy">Nothing for now.</p>
-        </div>
-        <button
-          onClick={() =>
-            currState.set({
-              ...currState.get(),
-              currentIntent: "",
-              inProgress: false,
-            })
-          }
-        >
-          Reset
-        </button>
+        ) : (
+          <div className="sidebar-empty-state">
+            <div className="sidebar-empty-icon" aria-hidden="true">
+              :)
+            </div>
+            <p className="sidebar-empty-title">You're all caught up</p>
+            <p className="sidebar-empty-copy">Nothing for now.</p>
+          </div>
+        )}
       </div>
       {/* <button
         onClick={() =>
