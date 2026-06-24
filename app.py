@@ -139,7 +139,7 @@ if user_prompt := st.chat_input("Type your message or ask for a web lookup..."):
                 st.session_state.total_prompt_tokens += response.usage.prompt_tokens
                 st.session_state.total_completion_tokens += response.usage.completion_tokens
             
-            response_message = response.choices.message
+            response_message = response.choices[0].message
             
             # Step 2: Handle Tool Execution if requested by the AI
             if response_message.tool_calls:
@@ -185,7 +185,7 @@ if user_prompt := st.chat_input("Type your message or ask for a web lookup..."):
             
             for chunk in response_stream:
                 if hasattr(chunk, "choices") and chunk.choices:
-                    delta_content = chunk.choices.delta.content
+                    delta_content = chunk.choices[0].delta.content
                     if delta_content:
                         full_response += delta_content
                         text_placeholder.markdown(full_response)
