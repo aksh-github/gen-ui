@@ -27,7 +27,7 @@ SELECTED_MODEL = get_model_name()
 
 # Set up Streamlit Page Configuration
 st.set_page_config(page_title="AI Chat App + Metrics", page_icon="💬", layout="wide")
-st.title("💬 AI Chat Application with Token Tracking")
+st.title("💬 AI Chat")
 
 # Initialize OpenAI Client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -103,11 +103,19 @@ if user_prompt := st.chat_input("Type your message here..."):
             
             # Iterate manually over the stream chunks to catch the usage packet
             for chunk in response_stream:
-                if chunk.choices and len(chunk.choices) > 0:
-                    delta_content = chunk.choices.delta.content
+                # FIX: Check if chunk.choices is present AND contains at least one item
+                if hasattr(chunk, "choices") and chunk.choices:
+                    delta_content = chunk.choices[0].delta.content
                     if delta_content:
                         full_response += delta_content
                         text_placeholder.markdown(full_response)
+                
+                # Capture token counts (OpenAI appends this packet to the end of the stream)
+                if hasattr(chunk, "usage") and chunk.usage is not None:
+                    # Update global counters in session state
+                    st.session_state.total_prompt_tokens += chunk.usage.prompt_tokens
+                    st.session_state.total_completion_tokens += chunk.usage.completion_tokens
+
                 
                 if hasattr(chunk, "usage") and chunk.usage is not None:
                     st.session_state.total_prompt_tokens += chunk.usage.prompt_tokens
