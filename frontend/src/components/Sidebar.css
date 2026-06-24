@@ -1,6 +1,7 @@
 .chat-sidebar {
-  flex: 0 0 480px;
-  width: 480px;
+  /* flex: 0 0 480px;
+  width: 480px; */
+  width: 50%;
   height: auto;
   min-width: 0;
   background: var(--white);
@@ -96,6 +97,7 @@
   color: var(--clay);
   font-size: 1.2rem;
   font-weight: 700;
+  transform: rotate(90deg);
 }
 
 .sidebar-empty-title {
@@ -217,6 +219,7 @@
     z-index: 20;
     flex: 0 0 auto;
     height: auto;
+    width: 100%;
     max-width: calc(100% - 1.5rem);
     border: 1px solid var(--gray-300);
     border-radius: 8px;

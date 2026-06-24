@@ -3,7 +3,7 @@ import { isFormValid, validate } from "./utils";
 import { ANY } from "../../utils/state";
 import "./form.css";
 
-let nextJsonFormInstanceId = 0;
+// let nextJsonFormInstanceId = 0;
 
 const ErrorMessage = ({
   id,
@@ -15,7 +15,7 @@ const ErrorMessage = ({
   return (
     <div>
       <div className="col-sm-2"></div>
-      <p id={id} className="message-invalid danger col-sm-10">
+      <p id={id} className="error-message danger col-sm-10">
         {/* {error ? (
 <Icon name="exclamation-triangle" className="sl-icon_color_error" />
 ) : null}
@@ -145,7 +145,18 @@ const Field = (props: {
   ) : null;
 };
 
-const getInitialFieldValue = (field: { value?: ANY; defaultValue?: ANY }) => {
+type TField = {
+  name: string;
+  value?: ANY;
+  defaultValue?: ANY;
+};
+
+// interface IFormState {
+//   [key: string]: any;
+// }
+export type IFormState = Record<string, { value: ANY; error: string }>;
+
+const getInitialFieldValue = (field: TField) => {
   return field.value ?? field.defaultValue ?? "";
 };
 
@@ -168,21 +179,23 @@ const JsonForm = ({
   // const [uiJson, setUiJson] = createState(null);
 
   // const [uiJsonRef] = createState({ current: uiJson });
-  const [formState, setFormState] = createState<null | {}>(null);
-  const [formValid, setFormValid] = createState(false);
+  const [formState, setFormState] = createState<null | IFormState>(null);
+  const [, setFormValid] = createState(false);
   const formInstanceId = instanceId;
 
   // uiJsonRef.current = uiJson;
   // const getLatestUiJson = () => uiJsonRef.current;
 
-  let formRef;
-
   createEffect(() => {
     console.log("uiJson changed");
     if (uiJson) {
       const newState = uiJson.form?.children.reduce(
-        (acc: any, field: { value: ANY; error: string }) => {
-          const existingField: any = formState?.[field.name];
+        (
+          acc: IFormState,
+          field: { name: string; error: string; value: ANY; defaultValue: ANY },
+        ) => {
+          const existingField: { value: ANY; error: string } | undefined =
+            formState?.[field.name];
           acc[field.name] = {
             value: existingField
               ? existingField.value
@@ -213,7 +226,7 @@ const JsonForm = ({
     // console.log("validateForm", formState);
     // const errors = {};
     let isValid = true;
-    const nextState = {};
+    const nextState: IFormState = {};
 
     for (const fieldName in formState) {
       const field = formState[fieldName];
@@ -256,14 +269,14 @@ const JsonForm = ({
     }
   };
 
-  const handleChange = (event) => {
-    const { name, value, type, checked } = event.target;
+  const handleChange = (event: Event) => {
+    const { name, value, type, checked } = event.target as HTMLInputElement;
     const fieldVal = type === "checkbox" ? checked : value;
 
     setFormState((prevState) => {
       // const currentUiJson = getLatestUiJson();
       const err = validate(uiJson, name, fieldVal);
-      const newState = {
+      const newState: IFormState = {
         ...prevState,
         [name]: {
           value: fieldVal,
@@ -283,8 +296,8 @@ const JsonForm = ({
     });
   };
 
-  const onBlur = (e) => {
-    const { name, value, type, checked } = e.target;
+  const onBlur = (e: FocusEvent) => {
+    const { name, value, type, checked } = e.target as HTMLInputElement;
 
     if (type === "submit") {
       // return when submit button is blurred to avoid validating form on submit button click
@@ -299,13 +312,14 @@ const JsonForm = ({
   };
 
   const setError = (id: string, error: string) => {
-    let newState;
+    let newState: IFormState;
 
     setFormState((prevState) => {
+      const currentState = prevState ?? {};
       newState = {
-        ...prevState,
+        ...currentState,
         [id]: {
-          value: prevState[id].value,
+          value: currentState[id]?.value,
           error,
         },
       };
@@ -320,7 +334,7 @@ const JsonForm = ({
   };
 
   return (
-    <div>
+    <div className="form-wrapper">
       {uiJson && formState && (
         <form
           id={`${formInstanceId}-${uiJson.form.id || "form"}`}
@@ -340,7 +354,7 @@ const JsonForm = ({
             <Field
               key={`${formInstanceId}-${field.name}`}
               field={field}
-              state={formState[field.name]}
+              state={formState[field.name as keyof typeof formState]}
               formInstanceId={formInstanceId}
               onBlur={onBlur}
               // handleChange={handleChange}

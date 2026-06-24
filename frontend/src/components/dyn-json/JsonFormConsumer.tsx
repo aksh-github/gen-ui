@@ -1,4 +1,4 @@
-import JsonForm from "./JsonForm";
+import JsonForm, { IFormState } from "./JsonForm";
 import { h, createEffect, createState } from "@vdom-lib";
 import { loadUI } from "./utils";
 // import "./form.css";
@@ -15,7 +15,7 @@ export const JsonFormConsumer = ({ key, currentIntent, id }: JFC) => {
   // const [usecaseChanged, setUsecaseChanged] = createState(false);
 
   // vv imp func: this is all business logic
-  const onFormChange = (formData: any, currrentValue: ANY) => {
+  const onFormChange = (formData: IFormState, currrentValue: ANY) => {
     // if (currrentValue?.name === "selectUsecase") {
     //   setUsecaseChanged(true);
     //   // modify the form json based on the selected use case
@@ -36,13 +36,11 @@ export const JsonFormConsumer = ({ key, currentIntent, id }: JFC) => {
     // }
   };
 
-  const onFormSubmit = ({ formState }: { formState: any }) => {
-    // console.log("submitted form state", formState);
+  const onFormSubmit = ({ formState }: { formState: IFormState }) => {
+    console.log("submitted form state", formState);
   };
 
   const jsonFile = intentToJsonfie.get(currentIntent) || "default.json";
-
-  console.log();
 
   createEffect(() => {
     console.log("onMount");

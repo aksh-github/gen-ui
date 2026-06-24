@@ -173,6 +173,8 @@
   background: var(--white);
   border: 1px solid var(--gray-300);
   border-radius: 0.75rem;
+  width: min(100%, 40em);
+  margin: 0 auto;
 }
 
 .chat-input {

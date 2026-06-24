@@ -20,7 +20,7 @@ export const SERVER_UNREACHABLE_MESSAGE =
 
 export const GENERIC_ERROR_MESSAGE = "Something went wrong. Please try again.";
 
-export type ANY = string | number | null | undefined;
+export type ANY = string | number | boolean | null | undefined;
 
 export type Message = {
   id: number;

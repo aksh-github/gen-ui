@@ -1,14 +1,39 @@
-.special-form {
-  max-width: 400px;
-  border: 4px dashed;
-  padding: 2em;
+.form-wrapper {
+  margin: 1em 0;
 
-  label {
-    display: block;
-    margin-bottom: 0.5em;
-  }
+  .special-form {
+    max-width: 400px;
+    border: 4px dashed;
+    padding: 2em;
 
-  .danger {
-    color: var(--danger);
+    label {
+      display: block;
+      margin-bottom: 0.5em;
+      font-weight: bold;
+    }
+
+    .error-message {
+      color: var(--danger);
+      font-size: small;
+    }
+
+    select {
+      min-width: 15em;
+      height: 3em;
+    }
+
+    textarea {
+      width: 100%;
+      overflow-y: auto;
+      resize: vertical;
+      height: 10em;
+      border: 1px solid var(--gray-300);
+
+      &:focus {
+        outline: none;
+        border-color: var(--clay);
+        background: var(--white);
+      }
+    }
   }
 }
