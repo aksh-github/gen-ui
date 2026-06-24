@@ -1,9 +1,9 @@
 import os
 import json
+import requests
 import streamlit as st
 from dotenv import load_dotenv
 from openai import OpenAI
-from duckduckgo_search import DDGS
 
 # Load API Key
 load_dotenv()
@@ -35,8 +35,9 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # Define System Prompt
 SYSTEM_PROMPT = (
     "You are a helpful AI assistant. You have access to a web search tool. "
-    "If the user asks about current events, real-time info, or explicitly asks you to search, "
-    "use the web search tool to get the latest accurate data before answering."
+    "If the user asks about current events, real-time info, weather, or explicitly "
+    "asks you to search, use the web search tool to get the latest accurate data "
+    "before answering."
 )
 
 # Initialize tracking metrics in session state
@@ -50,19 +51,43 @@ if "total_completion_tokens" not in st.session_state:
     st.session_state.total_completion_tokens = 0
 
 # --- TOOL DEFINITION FOR WEB SEARCH ---
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+
 def web_search(query: str) -> str:
-    """Performs a live web search using DuckDuckGo."""
+    """Performs a live web search using the Tavily API."""
+    if not TAVILY_API_KEY:
+        return "Error: TAVILY_API_KEY is not set in your environment/.env file."
     try:
-        with DDGS() as ddgs:
-            results = [r for r in ddgs.text(query, max_results=3)]
-            if not results:
-                return "No search results found."
-            
-            formatted_results = []
-            for i, r in enumerate(results, 1):
-                formatted_results.append(f"[{i}] Source: {r.get('href')}\nTitle: {r.get('title')}\nSnippet: {r.get('body')}\n")
-            return "\n".join(formatted_results)
-    except Exception as e:
+        response = requests.post(
+            "https://api.tavily.com/search",
+            json={
+                "api_key": TAVILY_API_KEY,
+                "query": query,
+                "search_depth": "basic",
+                "max_results": 3,
+                "include_answer": True,
+            },
+            timeout=15,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        results = data.get("results", [])
+        if not results:
+            return "No search results found."
+
+        formatted_results = []
+
+        # Tavily can optionally return a pre-synthesized answer
+        if data.get("answer"):
+            formatted_results.append(f"Quick answer: {data['answer']}\n")
+
+        for i, r in enumerate(results, 1):
+            formatted_results.append(
+                f"[{i}] Source: {r.get('url')}\nTitle: {r.get('title')}\nContent: {r.get('content')}\n"
+            )
+        return "\n".join(formatted_results)
+    except requests.exceptions.RequestException as e:
         return f"Error executing web search: {str(e)}"
 
 # Define the structural tool schema
@@ -71,7 +96,7 @@ tools = [
         "type": "function",
         "function": {
             "name": "web_search",
-            "description": "Search the live internet/web for current events, real-time facts, news, and up-to-date data.",
+            "description": "Search the live internet/web for current events, real-time facts, news, weather, and up-to-date data.",
             "parameters": {
                 "type": "object",
                 "properties": {
