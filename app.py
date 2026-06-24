@@ -1,4 +1,5 @@
 import os
+import json
 import streamlit as st
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -31,10 +32,17 @@ st.title("🌐 AI Chat Application with Live Web Access")
 # Initialize OpenAI Client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# Define System Prompt
+SYSTEM_PROMPT = (
+    "You are a helpful AI assistant. You have access to a web search tool. "
+    "If the user asks about current events, real-time info, or explicitly asks you to search, "
+    "use the web search tool to get the latest accurate data before answering."
+)
+
 # Initialize tracking metrics in session state
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "system", "content": "You are a helpful AI assistant. You have access to a web search tool. If the user asks about current events, real-time info, or explicitly asks you to search, use the web search tool to get the latest accurate data before answering."}
+        {"role": "system", "content": SYSTEM_PROMPT}
     ]
 if "total_prompt_tokens" not in st.session_state:
     st.session_state.total_prompt_tokens = 0
@@ -50,7 +58,6 @@ def web_search(query: str) -> str:
             if not results:
                 return "No search results found."
             
-            # Format results into a single context snippet
             formatted_results = []
             for i, r in enumerate(results, 1):
                 formatted_results.append(f"[{i}] Source: {r.get('href')}\nTitle: {r.get('title')}\nSnippet: {r.get('body')}\n")
@@ -58,7 +65,7 @@ def web_search(query: str) -> str:
     except Exception as e:
         return f"Error executing web search: {str(e)}"
 
-# Define the structural schema so the OpenAI model understands how to invoke the tool
+# Define the structural tool schema
 tools = [
     {
         "type": "function",
@@ -93,17 +100,24 @@ with st.sidebar:
     with col2:
         st.metric(label="Output (Reply)", value=f"{st.session_state.total_completion_tokens:,}")
     
+    # FIX: Corrected structural assignment of messages history array
     if st.button("Clear Conversation History"):
-        st.session_state.messages = [{"role": "system", "content": st.session_state.messages[0]["content"]}]
+        st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
         st.session_state.total_prompt_tokens = 0
         st.session_state.total_completion_tokens = 0
         st.rerun()
 
 # --- MAIN INTERFACE: CHAT SYSTEM ---
+# Safely render existing history, rendering dictionary inputs and native object instances gracefully
 for message in st.session_state.messages:
-    if message["role"] not in ["system", "tool"] and "tool_calls" not in message:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    # If it's an object, check its role attribute; if it's a dict, check the key
+    role = message.role if hasattr(message, "role") else message.get("role")
+    content = message.content if hasattr(message, "content") else message.get("content")
+    has_tool_calls = hasattr(message, "tool_calls") and message.tool_calls
+    
+    if role not in ["system", "tool"] and not has_tool_calls and content:
+        with st.chat_message(role):
+            st.markdown(content)
 
 if user_prompt := st.chat_input("Type your message or ask for a web lookup..."):
     with st.chat_message("user"):
@@ -113,8 +127,7 @@ if user_prompt := st.chat_input("Type your message or ask for a web lookup..."):
 
     with st.chat_message("assistant"):
         try:
-            # Step 1: Initial call to check if the model wants to use a tool
-            # Note: Streaming initial tool choices can complicate parsing, so we fetch the tool routing token packet synchronously.
+            # Step 1: Check if the model wants to use a tool
             response = client.chat.completions.create(
                 model=SELECTED_MODEL,
                 messages=st.session_state.messages,
@@ -122,30 +135,26 @@ if user_prompt := st.chat_input("Type your message or ask for a web lookup..."):
                 tool_choice="auto"
             )
             
-            # Record initial usage
             if response.usage:
                 st.session_state.total_prompt_tokens += response.usage.prompt_tokens
                 st.session_state.total_completion_tokens += response.usage.completion_tokens
             
-            response_message = response.choices[0].message
+            response_message = response.choices.message
             
             # Step 2: Handle Tool Execution if requested by the AI
             if response_message.tool_calls:
-                st.session_state.messages.append(response_message) # Add tool call signature to history
+                # Add the raw message object safely into context
+                st.session_state.messages.append(response_message)
                 
                 for tool_call in response_message.tool_calls:
                     if tool_call.function.name == "web_search":
-                        # Safely extract arguments passed by the model
-                        import json
                         args = json.loads(tool_call.function.arguments)
                         search_query = args.get("query")
                         
-                        # Show status indicator to user in UI
                         with st.status(f"🔍 Searching the web for: '{search_query}'...", expanded=False):
                             search_result = web_search(search_query)
                             st.write(search_result)
                         
-                        # Feed the live web data back into the conversational thread
                         st.session_state.messages.append({
                             "role": "tool",
                             "tool_call_id": tool_call.id,
@@ -153,7 +162,7 @@ if user_prompt := st.chat_input("Type your message or ask for a web lookup..."):
                             "content": search_result
                         })
                 
-                # Step 3: Call the model again, now streaming the final compiled answer
+                # Step 3: Stream the final response using updated context history
                 response_stream = client.chat.completions.create(
                     model=SELECTED_MODEL,
                     messages=st.session_state.messages,
@@ -162,6 +171,7 @@ if user_prompt := st.chat_input("Type your message or ask for a web lookup..."):
                 )
             else:
                 # If no tool was needed, stream the direct response immediately
+                st.session_state.messages.append(response_message)
                 response_stream = client.chat.completions.create(
                     model=SELECTED_MODEL,
                     messages=st.session_state.messages,
@@ -175,7 +185,7 @@ if user_prompt := st.chat_input("Type your message or ask for a web lookup..."):
             
             for chunk in response_stream:
                 if hasattr(chunk, "choices") and chunk.choices:
-                    delta_content = chunk.choices[0].delta.content
+                    delta_content = chunk.choices.delta.content
                     if delta_content:
                         full_response += delta_content
                         text_placeholder.markdown(full_response)
@@ -184,7 +194,12 @@ if user_prompt := st.chat_input("Type your message or ask for a web lookup..."):
                     st.session_state.total_prompt_tokens += chunk.usage.prompt_tokens
                     st.session_state.total_completion_tokens += chunk.usage.completion_tokens
             
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
+            # Replace the temporary response object placeholder with the real string response content
+            if st.session_state.messages[-1] == response_message and not response_message.tool_calls:
+                st.session_state.messages[-1] = {"role": "assistant", "content": full_response}
+            else:
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
+                
             st.rerun()
             
         except Exception as e:
