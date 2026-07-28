@@ -19,3 +19,18 @@ HEALTHCHECK CMD curl --fail http://localhost:5050/chat/_stcore/health || exit 1
 
 # CRITICAL: Added port=5050 and baseUrlPath=chat
 ENTRYPOINT ["streamlit", "run", "app.py", "--server.port=5050", "--server.address=0.0.0.0", "--server.baseUrlPath=chat"]
+
+# Use it like:
+# docker build -t ai-chat .
+
+# stop
+# docker stop ai-chat
+
+# remove
+# docker rm ai-chat
+
+# and then
+# docker run -p 5050:5050 -d --name ai-chat --restart=unless-stopped ai-chat   # use -d to run in detached mode
+
+# To check logs:
+# docker logs -f ai-chat
