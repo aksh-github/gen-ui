@@ -40,6 +40,50 @@ SYSTEM_PROMPT = (
     "before answering."
 )
 
+
+def serialize_value(value):
+    """Recursively convert SDK/runtime objects into JSON-serializable data."""
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {str(k): serialize_value(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [serialize_value(item) for item in value]
+    if hasattr(value, "model_dump"):
+        return serialize_value(value.model_dump())
+    if hasattr(value, "to_dict"):
+        return serialize_value(value.to_dict())
+    if hasattr(value, "__dict__"):
+        return serialize_value({k: v for k, v in vars(value).items() if not k.startswith("_")})
+    return str(value)
+
+
+def serialize_message(message):
+    """Convert stored message objects to plain dictionaries for the OpenAI API."""
+    if isinstance(message, dict):
+        return {k: serialize_value(v) for k, v in message.items() if v is not None}
+
+    payload = {}
+    for key in ("role", "content", "tool_calls", "tool_call_id", "name"):
+        value = getattr(message, key, None)
+        if value is not None:
+            payload[key] = serialize_value(value)
+
+    return payload
+
+
+def build_messages_for_request():
+    """Return the full chat history as plain dictionaries for each API call."""
+    return [serialize_message(message) for message in st.session_state.messages if message is not None]
+
+
+def clear_chat_history():
+    """Reset the chat session to a fresh system prompt state."""
+    st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    st.session_state.total_prompt_tokens = 0
+    st.session_state.total_completion_tokens = 0
+
+
 # Initialize tracking metrics in session state
 if "messages" not in st.session_state:
     st.session_state.messages = [
@@ -125,12 +169,12 @@ with st.sidebar:
     with col2:
         st.metric(label="Output (Reply)", value=f"{st.session_state.total_completion_tokens:,}")
     
-    # FIX: Corrected structural assignment of messages history array
-    if st.button("Clear Conversation History"):
-        st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-        st.session_state.total_prompt_tokens = 0
-        st.session_state.total_completion_tokens = 0
-        st.rerun()
+    st.button(
+        "🧹 Clear Chat History",
+        use_container_width=True,
+        on_click=clear_chat_history,
+    )
+    st.caption("This removes the current conversation and resets token counters.")
 
 # --- MAIN INTERFACE: CHAT SYSTEM ---
 # Safely render existing history, rendering dictionary inputs and native object instances gracefully
@@ -152,10 +196,12 @@ if user_prompt := st.chat_input("Type your message or ask for a web lookup..."):
 
     with st.chat_message("assistant"):
         try:
+            messages_for_request = build_messages_for_request()
+
             # Step 1: Check if the model wants to use a tool
             response = client.chat.completions.create(
                 model=SELECTED_MODEL,
-                messages=st.session_state.messages,
+                messages=messages_for_request,
                 tools=tools,
                 tool_choice="auto"
             )
@@ -168,8 +214,8 @@ if user_prompt := st.chat_input("Type your message or ask for a web lookup..."):
             
             # Step 2: Handle Tool Execution if requested by the AI
             if response_message.tool_calls:
-                # Add the raw message object safely into context
-                st.session_state.messages.append(response_message)
+                # Add the assistant tool-call message to context
+                st.session_state.messages.append(serialize_message(response_message))
                 
                 for tool_call in response_message.tool_calls:
                     if tool_call.function.name == "web_search":
@@ -190,40 +236,31 @@ if user_prompt := st.chat_input("Type your message or ask for a web lookup..."):
                 # Step 3: Stream the final response using updated context history
                 response_stream = client.chat.completions.create(
                     model=SELECTED_MODEL,
-                    messages=st.session_state.messages,
-                    stream=True,
-                    stream_options={"include_usage": True}
-                )
-            else:
-                # If no tool was needed, stream the direct response immediately
-                st.session_state.messages.append(response_message)
-                response_stream = client.chat.completions.create(
-                    model=SELECTED_MODEL,
-                    messages=st.session_state.messages,
+                    messages=build_messages_for_request(),
                     stream=True,
                     stream_options={"include_usage": True}
                 )
 
-            # Stream response to interface
-            text_placeholder = st.empty()
-            full_response = ""
-            
-            for chunk in response_stream:
-                if hasattr(chunk, "choices") and chunk.choices:
-                    delta_content = chunk.choices[0].delta.content
-                    if delta_content:
-                        full_response += delta_content
-                        text_placeholder.markdown(full_response)
+                # Stream response to interface
+                text_placeholder = st.empty()
+                full_response = ""
                 
-                if hasattr(chunk, "usage") and chunk.usage is not None:
-                    st.session_state.total_prompt_tokens += chunk.usage.prompt_tokens
-                    st.session_state.total_completion_tokens += chunk.usage.completion_tokens
-            
-            # Replace the temporary response object placeholder with the real string response content
-            if st.session_state.messages[-1] == response_message and not response_message.tool_calls:
-                st.session_state.messages[-1] = {"role": "assistant", "content": full_response}
-            else:
+                for chunk in response_stream:
+                    if hasattr(chunk, "choices") and chunk.choices:
+                        delta_content = chunk.choices[0].delta.content
+                        if delta_content:
+                            full_response += delta_content
+                            text_placeholder.markdown(full_response)
+                    
+                    if hasattr(chunk, "usage") and chunk.usage is not None:
+                        st.session_state.total_prompt_tokens += chunk.usage.prompt_tokens
+                        st.session_state.total_completion_tokens += chunk.usage.completion_tokens
+                
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
+            else:
+                assistant_content = response_message.content or ""
+                st.session_state.messages.append({"role": "assistant", "content": assistant_content})
+                st.markdown(assistant_content)
                 
             st.rerun()
             
