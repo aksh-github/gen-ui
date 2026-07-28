@@ -29,8 +29,9 @@ ENTRYPOINT ["streamlit", "run", "app.py", "--server.port=5050", "--server.addres
 # remove
 # docker rm ai-chat
 
-# and then
-# docker run -p 5050:5050 -d --name ai-chat --restart=unless-stopped ai-chat   # use -d to run in detached mode
+######## or use docker compose:    ############
+
+# docker compose up -d --build
 
 # To check logs:
 # docker logs -f ai-chat
